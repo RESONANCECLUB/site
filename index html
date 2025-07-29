@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="ja" class="scroll-smooth">
+<head>
+    <!-- Chosen Palette: Custom palette based on dark blue (#003f5c) and orange accent (#ff7c43) -->
+    <!-- Application Structure Plan: The SPA is structured as a navigable web application based on the "business-plan-visualized-jp-corrected" report. A fixed sidebar navigation allows users to jump to any of the 7 logical sections instantly. This task-oriented, dashboard-like structure is superior for decision-makers who need to explore specific parts of the business plan (e.g., financials, marketing) without linear scrolling. The content is modularized into cards within each section. This architecture prioritizes user-driven exploration over a passive narrative. -->
+    <!-- Visualization & Content Choices: 
+        - Navigation: A fixed sidebar with active link highlighting (IntersectionObserver) provides clear orientation and non-linear access to all report sections.
+        - Layout: A two-column layout (sidebar + main content) creates a classic, user-friendly web application feel.
+        - Charts (Bar, Donut, Line, Pie): Used to visualize quantitative data from the report, now placed within cards in their respective sections. The profit forecast chart data is updated to reflect the Japanese plan's figures in JPY. The profit distribution pie chart is correctly implemented to fix the previous runtime error and complete the financial overview.
+        - Interactive AI Tools: Placed within their logical sections (Positioning, Blueprint, Area Master Suite, Financials, Roadmap) to allow deep, interactive exploration of the business model's core components, with prompts tailored to the Japanese market context. All JS event listeners now correctly correspond to existing HTML elements.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webアプリケーション：プロジェクト・レゾナンス・ジャパン</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #f8f9fa;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .kpi-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .nav-link.active {
+            background-color: #ff7c43;
+            color: white;
+        }
+        .gemini-button {
+            background-color: #ff7c43;
+            color: white;
+            font-weight: bold;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+        }
+        .gemini-button:hover {
+            background-color: #f95d6a;
+        }
+        .gemini-output {
+            background-color: #eff2f5;
+            border-left: 4px solid #ff7c43;
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 0.25rem;
+            white-space: pre-wrap;
+            min-height: 100px;
+            text-align: left;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #ff7c43;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="flex">
+        <aside class="fixed top-0 left-0 h-screen w-64 bg-[#003f5c] text-white p-4 shadow-xl z-10 hidden md:block">
+            <h1 class="text-2xl font-black mb-6 border-b border-gray-500 pb-4">プロジェクト・レゾナンス・ジャパン</h1>
+            <nav id="desktop-nav">
+                <ul class="space-y-2">
+                    <li><a href="#summary" class="nav-link block p-3 rounded-lg hover:bg-[#ff7c43] transition-colors duration-200">サマリー</a></li>
+                    <li><a href="#opportunity" class="nav-link block p-3 rounded-lg hover:bg-[#ff7c43] transition-colors duration-200">第1章：市場機会</a></li>
+                    <li><a href="#positioning" class="nav-link block p-3 rounded-lg hover:bg-[#ff7c43] transition-colors duration-200">第2章：戦略的ポジショニング</a></li>
+                    <li><a href="#blueprint" class="nav-link block p-3 rounded-lg hover:bg-[#ff7c43] transition-colors duration-200">第3章：市場参入計画</a></li>
+                    <li><a href="#marketing-plan" class="nav-link block p-3 rounded-lg hover:bg-[#ff7c43] transition-colors duration-200">第4章：マーケティング計画</a></li>
+                    <li><a href="#community" class="nav-link block p-3 rounded-lg hover:bg-[#ff7c43] transition-colors duration-200">第5章：エリアマスター支援</a></li>
+                    <li><a href="#financials" class="nav-link block p-3 rounded-lg hover:bg-[#ff7c43] transition-colors duration-200">第6章：財務モデル</a></li>
+                    <li><a href="#roadmap" class="nav-link block p-3 rounded-lg hover:bg-[#ff7c43] transition-colors duration-200">第7章：ロードマップと提言</a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="w-full md:ml-64">
+            <header class="bg-white p-4 border-b md:hidden sticky top-0 z-20">
+                <h1 class="text-xl font-bold text-[#003f5c]">プロジェクト・レゾナンス・ジャパン</h1>
+            </header>
+
+            <div class="p-4 md:p-8">
+                <section id="summary" class="mb-16 min-h-screen pt-16 -mt-16">
+                    <div class="bg-white p-8 rounded-lg shadow-lg">
+                        <h2 class="text-3xl font-bold text-center mb-4">エグゼクティブサマリー：38兆円市場への挑戦</h2>
+                        <p class="max-w-4xl mx-auto text-center">
+                            本提案は、革新的なウェルネスシステム「Resonance」を、**約38兆円規模の日本のウェルネス市場**へ導入するための包括的な事業計画です。本戦略は**万人向けではなく**、氣功、瞑想、ヨガなどを通じて心身のバランスを重視する、**ウェルネス志向の高い40代以降の女性**にターゲットを限定します。Resonanceは**追加サービス不要の完成形Androidアプリ**であり、これを基盤にコミュニティ活動を活性化させます。AI支援により**営業能力を不要とする革新的な「エリアマスター制度」**を導入。Resonanceを理解した教師・研究者（例：医療関係者、ホリスティックメディスン実践者など）が、地域の教育普及代理人として情報発信に専念できる環境を構築します。**日本統合医療学会（IMJ）**のような権威ある学術団体との連携により科学的信頼性を担保し、各地方ブロックの**サービスプロバイダ**との共生的なパートナーシップを通じて、スケーラブルな事業モデルを確立します。
+                        </p>
+                    </div>
+                </section>
+
+                <section id="opportunity" class="mb-16 min-h-screen pt-16 -mt-16">
+                    <h2 class="text-3xl font-bold text-center mb-2">第1章：市場機会の発見</h2>
+                    <p class="text-xl text-center text-[#665191] font-bold mb-8">日本のウェルネス市場</p>
+                    <p class="max-w-3xl mx-auto text-center mb-12">
+                        日本の市場は、**超高齢社会における健康寿命への関心の高まり**と、**「ウェルビーイング」や「マインドフルネス」への需要拡大**が交差する、独自の好機を提供します。このセクションでは、その市場規模とターゲット層の深いインサイトを探ります。
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center mb-8">
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-xl font-bold mb-4 text-center">日本のウェルネス関連市場の成長性 (CAGR)</h3>
+                            <div class="chart-container">
+                                <canvas id="marketGrowthChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-xl font-bold mb-4 text-center">日本のアプリ市場における機会</h3>
+                            <div class="chart-container">
+                                <canvas id="unservedMarketChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                         <h3 class="text-xl font-bold mb-4 text-center">限定されたターゲット層の文化・心理的背景</h3>
+                         <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm text-left">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="p-3">項目</th>
+                                        <th class="p-3">詳細</th>
+                                        <th class="p-3">Resonanceへの親和性</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b">
+                                        <td class="p-3 font-bold">価値観</td>
+                                        <td class="p-3">「丁寧な暮らし」「本物志向」「自己投資」。目に見えない価値（精神的な充足感、調和）を重視。</td>
+                                        <td class="p-3">物質的な豊かさだけでなく、心身のバランスを科学的にサポートするResonanceの哲学と合致。</td>
+                                    </tr>
+                                    <tr class="border-b">
+                                        <td class="p-3 font-bold">情報源</td>
+                                        <td class="p-3">信頼する専門家、同年代のインフルエンサー（医師、美容家など）、質の高い雑誌、オンラインコミュニティ。</td>
+                                        <td class="p-3">権威ある学会との連携と、教育者としてのエリアマスターからの情報発信が極めて有効。</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="p-3 font-bold">消費行動</td>
+                                        <td class="p-3">価格よりも価値と納得感を重視。ストーリーや背景にある哲学に共感すると、高価格帯でも購入を厭わない。</td>
+                                        <td class="p-3">高級ブランドと同様のニッチ戦略が有効。「なぜこれが必要か」を教育を通じて伝えることが鍵。</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="text-center mt-4 font-bold">結論: 日本のターゲット層は、Resonanceが提供する「科学的根拠のあるホリスティックな解決策」を求めており、その価値を正しく伝えれば、プレミアム価格は障壁になりません。</p>
+                    </div>
+                </section>
+
+                <section id="positioning" class="mb-16 min-h-screen pt-16 -mt-16">
+                    <h2 class="text-3xl font-bold text-center mb-2">第2章：競争を無力化する戦略的ポジショニング</h2>
+                     <p class="max-w-3xl mx-auto text-center mb-12">
+                        このセクションでは、Resonanceが日本市場で独自の地位を築くための戦略を定義します。明確なポジショニング・ステートメントと、競合にはない8つの強みを探ります。
+                    </p>
+                    <div class="bg-white p-8 rounded-lg shadow-lg mb-8">
+                        <h3 class="text-2xl font-bold text-center mb-4">ポジショニング・ステートメント</h3>
+                        <p class="text-center italic">
+                            「『丁寧な暮らし』の中で心身の調和を探求する、日本の40代以降の女性のために。Resonanceは、科学的根拠（サイマティクス）に基づくパーソナライズ周波数と完成されたプラットフォームで、従来の健康法では到達できなかった、深いレベルのウェルビーイングを実現する唯一のオールインワン・ウェルネスシステムです。」
+                        </p>
+                    </div>
+                    <div class="bg-white p-8 rounded-lg shadow-lg">
+                        <h3 class="text-2xl font-bold text-center mb-4">✨ AIによる競合分析</h3>
+                        <p class="text-center mb-6">マス市場向けのアプリや高価格帯の物理デバイスと比較し、我々のニッチ戦略の優位性をAIが分析します。比較対象を選択してください。</p>
+                        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                            <select id="competitorSelect" class="p-3 border rounded-md w-full sm:w-auto">
+                                <option value="Calm">Calm（アプリ）</option>
+                                <option value="Healy">Healy（デバイス）</option>
+                                <option value="TimeWaver">TimeWaver（デバイス）</option>
+                                <option value="Metatron">メタトロン（デバイス）</option>
+                                <option value="News-CAN">ニュースキャン（デバイス）</option>
+                            </select>
+                            <button id="analyzeCompetitorBtn" class="gemini-button w-full sm:w-auto">競合との違いを分析</button>
+                        </div>
+                        <div id="competitorOutput" class="gemini-output mt-6"></div>
+                    </div>
+                </section>
+
+                <section id="blueprint" class="mb-16 min-h-screen pt-16 -mt-16">
+                    <h2 class="text-3xl font-bold text-center mb-2">第3章：市場参入ブループリント</h2>
+                    <p class="text-xl text-center text-[#665191] font-bold mb-8">信頼から拡大への3段階アプローチ</p>
+                     <p class="max-w-3xl mx-auto text-center mb-12">
+                        市場参入は「教育第一」の哲学に基づき、リスクを最小化しながら段階的に進行します。このセクションでは、権威性の確立から全国ネットワークの拡大に至るまでの3つのフェーズを解説します。
+                    </p>
+                    <div class="bg-white p-8 rounded-lg shadow-lg mb-8">
+                        <div class="flex flex-col md:flex-row justify-center items-stretch text-center">
+                            <div class="flow-step p-4">
+                                <div class="w-full">
+                                    <div class="text-5xl mb-3">🎓</div>
+                                    <h3 class="text-xl font-bold text-[#665191]">Phase 1: 権威性の確立 (Y1)</h3>
+                                    <p class="text-sm mt-2">**日本統合医療学会（IMJ）**や国内の著名な研究者と提携し、日本市場における学術的な裏付けを確立。ECサイトを構築し、薬機法・景表法に準拠したマーケティング基盤を整備。</p>
+                                </div>
+                            </div>
+                             <div class="w-full md:w-auto flex justify-center items-center md:hidden my-4">
+                                <div class="text-4xl text-[#ff7c43]">↓</div>
+                            </div>
+                            <div class="flow-step p-4">
+                                <div class="w-full">
+                                    <div class="text-5xl mb-3">🌱</div>
+                                    <h3 class="text-xl font-bold text-[#a05195]">Phase 2: コミュニティの醸成 (Y1-Y2)</h3>
+                                    <p class="text-sm mt-2">**首都圏**および**関西圏**からエリアマスター制度を先行導入。人口比やウェルネスへの関心度が高いエリアで成功事例を創出。</p>
+                                </div>
+                            </div>
+                             <div class="w-full md:w-auto flex justify-center items-center md:hidden my-4">
+                                <div class="text-4xl text-[#ff7c43]">↓</div>
+                            </div>
+                            <div class="flow-step p-4">
+                                <div class="w-full">
+                                    <div class="text-5xl mb-3">🌍</div>
+                                    <h3 class="text-xl font-bold text-[#d45087]">Phase 3: 全国ネットワークの拡大 (Y2以降)</h3>
+                                    <p class="text-sm mt-2">首都圏・関西圏の成功モデルを、北海道、東北、中部、中国・四国、九州・沖縄の各ブロックへと展開。サービスプロバイダと連携し、全国47都道府県への普及を目指す。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="marketing-plan" class="mb-16 min-h-screen pt-16 -mt-16">
+                    <h2 class="text-3xl font-bold text-center mb-2">第4章：7Pマーケティング実行計画</h2>
+                    <p class="text-xl text-center text-[#665191] font-bold mb-8">戦略の具現化</p>
+                    <p class="max-w-3xl mx-auto text-center mb-12">
+                        ここでは、事業戦略を具体的なアクションに落とし込むための「7P」フレームワーク（Product, Price, Place, Promotion, People, Process, Physical Evidence）を日本市場に合わせて定義します。
+                    </p>
+                    <div class="bg-white p-8 rounded-lg shadow-lg">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                            <div class="kpi-card"><strong>Product (製品):</strong> 完成形Androidアプリと無償ハードウェア。日本語UI/UXの完全なローカライズ。</div>
+                            <div class="kpi-card"><strong>Price (価格):</strong> 税込み330,000円のプロフェッショナル版のみ。エリアマスターは年内半額特典あり。</div>
+                            <div class="kpi-card"><strong>Place (流通):</strong> エリアマスターと地方ブロックごとのサービスプロバイダを通じたB2B2Cチャネル。</div>
+                            <div class="kpi-card"><strong>Promotion (販促):</strong> AI支援による教育的コンテンツマーケティングとSNS発信。</div>
+                            <div class="kpi-card"><strong>People (人々):</strong> 権威ある専門家と、教育者としてのエリアマスター。</div>
+                            <div class="kpi-card"><strong>Process (プロセス):</strong> AI支援の簡単な登録と評価。ハードウェア保証はXIAOMIが担当。</div>
+                            <div class="kpi-card lg:col-span-2"><strong>Physical Evidence (物的証拠):</strong> 日本の大学との共同研究成果、専門家からの推薦状、国内ユーザーの体験談。</div>
+                        </div>
+                    </div>
+                </section>
+                
+                <section id="community" class="mb-16 min-h-screen pt-16 -mt-16">
+                    <h2 class="text-3xl font-bold text-center mb-2">第5章：エリアマスター・エンパワーメント・スイート</h2>
+                    <p class="text-xl text-center text-[#665191] font-bold mb-8">AIによる「営業不要」の教育普及モデル</p>
+                    <p class="max-w-3xl mx-auto text-center mb-12">
+                        エリアマスターは営業担当者ではなく、地域の教育者です。このセクションでは、AIを活用したデジタルツールで彼らの教育普及活動をいかに最大化するかを探ります。
+                    </p>
+                    <div class="bg-white p-8 rounded-lg shadow-lg mb-8">
+                        <h3 class="text-2xl font-bold text-center mb-4">✨ AIによるエリアマスター像の具体化</h3>
+                        <p class="text-center mb-6">国や地域を選択し、AIにその役割を担うにふさわしい人物像を生成させてください。</p>
+                        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                            <select id="countrySelect" class="p-3 border rounded-md w-full sm:w-auto">
+                                <option value="Tokyo">首都圏</option>
+                                <option value="Kansai">関西圏</option>
+                                <option value="Hokkaido">北海道</option>
+                                <option value="Tohoku">東北</option>
+                                <option value="Chubu">中部</option>
+                                <option value="Chugoku_Shikoku">中国・四国</option>
+                                <option value="Kyushu_Okinawa">九州・沖縄</option>
+                            </select>
+                            <button id="generatePersonaBtn" class="gemini-button w-full sm:w-auto">エリアマスター像を生成</button>
+                        </div>
+                        <div id="personaOutput" class="gemini-output mt-6"></div>
+                    </div>
+                    <div class="bg-white p-8 rounded-lg shadow-lg mb-8">
+                        <h3 class="text-2xl font-bold text-center mb-4">✨ AIによるエリアマスター収益シミュレーター</h3>
+                        <p class="text-center mb-6">あなたのエリアで年間で獲得できそうな顧客数を入力し、期待収益を試算してみてください。</p>
+                        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                            <input type="number" id="customerCountInput" class="p-3 border rounded-md w-full sm:w-auto" placeholder="年間獲得顧客数（例: 50）">
+                            <button id="calculateIncomeBtn" class="gemini-button w-full sm:w-auto">期待収益を試算</button>
+                        </div>
+                        <div id="incomeOutput" class="gemini-output mt-6"></div>
+                    </div>
+                </section>
+
+                <section id="financials" class="mb-16 min-h-screen pt-16 -mt-16">
+                    <h2 class="text-3xl font-bold text-center mb-2">第6章：財務モデルと収益予測</h2>
+                    <p class="text-xl text-center text-[#665191] font-bold mb-8">スケーラブルな成長計画</p>
+                    <p class="max-w-3xl mx-auto text-center mb-12">
+                        本事業の高い収益性と、持続可能なコスト構造を具体的な数値で示します。グラフとシミュレーションで、財務的なポテンシャルをご確認ください。
+                    </p>
+                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 mb-8">
+                        <div class="lg:col-span-3 bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-xl font-bold mb-4 text-center">3カ年純利益予測（日本市場）</h3>
+                            <div class="chart-container h-[400px] max-h-[450px]">
+                                <canvas id="netProfitChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-xl font-bold mb-4 text-center">税引き後利益の分配モデル</h3>
+                            <div class="chart-container h-[400px] max-h-[450px]">
+                                <canvas id="profitDistributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="bg-white p-8 rounded-lg shadow-lg">
+                        <h3 class="text-2xl font-bold text-center mb-4">✨ AIによるエコシステム収益シミュレーション（物販・サービス）</h3>
+                        <p class="text-center mb-6">エリアマスターやサービスプロバイダは、自身の顧客に物販やサービスを提供できます。Resonanceは取引仲介手数料として10%の収益を得ます。Y3の顧客数（15万人）をベースに、この追加収益の可能性を試算します。</p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                            <input type="number" id="avgSpendingInput" class="p-3 border rounded-md w-full" placeholder="顧客一人あたりの年間消費額 (円)">
+                            <input type="number" id="participationRateInput" class="p-3 border rounded-md w-full" placeholder="マーケット参加率 (%)">
+                            <button id="calculateEcosystemRevenueBtn" class="gemini-button w-full">追加収益を試算</button>
+                        </div>
+                        <div id="ecosystemRevenueOutput" class="gemini-output mt-6"></div>
+                    </div>
+                </section>
+
+                <section id="roadmap" class="mb-16 min-h-screen pt-16 -mt-16">
+                    <h2 class="text-3xl font-bold text-center mb-2">第7章：戦略的ロードマップと最終提言</h2>
+                    <p class="max-w-3xl mx-auto text-center mb-12">
+                        最後に、今後3年間の実行計画と、本事業を成功に導くための重要な原則を再確認します。AIによるリスク分析も行い、計画の堅牢性を示します。
+                    </p>
+                    <div class="bg-white p-8 rounded-lg shadow-lg mb-8">
+                        <h3 class="text-2xl font-bold text-center mb-4">実行ロードマップ（日本版）</h3>
+                        <div class="timeline-container">
+                            <div class="timeline-item">
+                                <h3 class="text-xl font-bold text-[#665191]">Y1: 権威性の確立と初期導入</h3>
+                                <p class="text-md font-bold mt-1">日本統合医療学会等との提携、首都圏・関西圏でのエリアマスター制度開始。</p>
+                            </div>
+                        </div>
+                         <div class="timeline-container">
+                            <div class="timeline-item">
+                                <h3 class="text-xl font-bold text-[#a05195]">Y2: コミュニティの全国展開</h3>
+                                <p class="text-md font-bold mt-1">主要都市へのエリアマスター拡大、地方ブロックごとのサービスプロバイダ契約。</p>
+                            </div>
+                        </div>
+                         <div class="timeline-container">
+                            <div class="timeline-item">
+                                <h3 class="text-xl font-bold text-[#d45087]">Y3: エコシステムの成熟</h3>
+                                <p class="text-md font-bold mt-1">物販・サービス販売プラットフォームの本格稼働、アジア展開の準備。</p>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="bg-white p-8 rounded-lg shadow-lg mb-8">
+                        <h3 class="text-2xl font-bold text-center mb-4">✨ AIによるリスク懸念の払拭</h3>
+                        <p class="text-center mb-6">本事業計画は、一般的な懸念事項を戦略的に克服するよう設計されています。ボタンを押し、AIに本モデルが潜在的リスクをいかにして問題としないかを説明させてください。</p>
+                        <div class="text-center">
+                            <button id="generateRiskAnalysisBtn" class="gemini-button">リスク懸念の払拭</button>
+                        </div>
+                        <div id="riskAnalysisOutput" class="gemini-output mt-6"></div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navLinks = document.querySelectorAll('.nav-link');
+            const sections = document.querySelectorAll('main section');
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        navLinks.forEach(link => {
+                            link.classList.toggle('active', link.getAttribute('href').substring(1) === entry.target.id);
+                        });
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            sections.forEach(section => observer.observe(section));
+
+            function wrapLabels(label) {
+                const maxLen = 16;
+                if (typeof label !== 'string' || label.length <= maxLen) {
+                    return label;
+                }
+                const words = label.split(' ');
+                const lines = [];
+                let currentLine = '';
+                for (const word of words) {
+                    if ((currentLine + ' ' + word).length > maxLen && currentLine.length > 0) {
+                        lines.push(currentLine);
+                        currentLine = word;
+                    } else {
+                        if (currentLine.length > 0) {
+                            currentLine += ' ';
+                        }
+                        currentLine += word;
+                    }
+                }
+                lines.push(currentLine);
+                return lines;
+            }
+
+            const tooltipTitleCallback = (tooltipItems) => {
+                const item = tooltipItems[0];
+                let label = item.chart.data.labels[item.dataIndex];
+                if (Array.isArray(label)) {
+                    return label.join(' ');
+                }
+                return label;
+            };
+            
+            const defaultChartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: '#003f5c',
+                            font: {
+                               family: "'Noto Sans JP', sans-serif"
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: tooltipTitleCallback
+                        },
+                        titleFont: {
+                            family: "'Noto Sans JP', sans-serif"
+                        },
+                        bodyFont: {
+                            family: "'Noto Sans JP', sans-serif"
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { 
+                            color: '#003f5c',
+                            font: {
+                               family: "'Noto Sans JP', sans-serif"
+                            }
+                        },
+                        grid: {
+                            color: '#e5e7eb'
+                        }
+                    },
+                    x: {
+                        ticks: { 
+                            color: '#003f5c',
+                            font: {
+                               family: "'Noto Sans JP', sans-serif"
+                            }
+                        },
+                         grid: {
+                            display: false
+                        }
+                    }
+                }
+            };
+
+            const colors = {
+                purple: '#665191',
+                magenta: '#d45087',
+                orange: '#ff7c43',
+                yellow: '#ffa600',
+                darkBlue: '#003f5c',
+                green: '#2ca02c',
+                red: '#d62728'
+            };
+
+            const marketGrowthCtx = document.getElementById('marketGrowthChart').getContext('2d');
+            new Chart(marketGrowthCtx, {
+                type: 'bar',
+                data: {
+                    labels: [
+                        wrapLabels('日本のデジタルヘルスケア'), 
+                        wrapLabels('日本の補完代替医療(CAM)'), 
+                        wrapLabels('日本のヨガ・瞑想人口')
+                    ],
+                    datasets: [{
+                        label: '年平均成長率 (CAGR) %',
+                        data: [21.48, 24.5, 9.0],
+                        backgroundColor: [colors.purple, colors.magenta, colors.orange],
+                        borderColor: [colors.purple, colors.magenta, colors.orange],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    ...defaultChartOptions,
+                    indexAxis: 'y',
+                     plugins: {
+                        ...defaultChartOptions.plugins,
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+
+            const unservedMarketCtx = document.getElementById('unservedMarketChart').getContext('2d');
+            new Chart(unservedMarketCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['ホリスティック志向アプリ', '一般的な健康アプリ'],
+                    datasets: [{
+                        label: '市場の割合',
+                        data: [15, 85],
+                        backgroundColor: [colors.orange, '#e5e7eb'],
+                        borderColor: ['#ffffff'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                         legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#003f5c',
+                                font: {
+                                   family: "'Noto Sans JP', sans-serif"
+                                }
+                            }
+                        },
+                        tooltip: {
+                             callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += context.parsed + '%';
+                                    }
+                                    return label;
+                                }
+                            },
+                            titleFont: {
+                                family: "'Noto Sans JP', sans-serif"
+                            },
+                            bodyFont: {
+                                family: "'Noto Sans JP', sans-serif"
+                            }
+                        }
+                    }
+                }
+            });
+
+            const netProfitCtx = document.getElementById('netProfitChart').getContext('2d');
+            new Chart(netProfitCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Y1', 'Y2', 'Y3'],
+                    datasets: [{
+                        label: '純利益 (億円)',
+                        data: [26.4, 79.1, 158.2],
+                        backgroundColor: 'rgba(255, 124, 67, 0.2)',
+                        borderColor: colors.orange,
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    ...defaultChartOptions,
+                    scales: {
+                        y: {
+                            ...defaultChartOptions.scales.y,
+                            title: {
+                                display: true,
+                                text: '純利益 (億円)'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            const profitDistributionCtx = document.getElementById('profitDistributionChart').getContext('2d');
+            new Chart(profitDistributionCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['本部純利益', 'エリアマスター報酬', '地域貢献', '広告宣伝費', 'サービスプロバイダ報酬', '研究所ロイヤリティ', 'AI/サイト運営コスト'],
+                    datasets: [{
+                        data: [61, 20, 10, 2, 3, 3, 1],
+                        backgroundColor: [
+                            colors.darkBlue,
+                            colors.orange,
+                            colors.green,
+                            colors.yellow,
+                            colors.purple,
+                            colors.magenta,
+                            colors.red
+                        ],
+                        borderColor: '#ffffff',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                         legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#003f5c',
+                                font: {
+                                   family: "'Noto Sans JP', sans-serif"
+                                }
+                            }
+                        },
+                        tooltip: {
+                             callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += context.parsed + '%';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const generatePersonaBtn = document.getElementById('generatePersonaBtn');
+            const personaOutput = document.getElementById('personaOutput');
+            const countrySelect = document.getElementById('countrySelect');
+            const generateRiskAnalysisBtn = document.getElementById('generateRiskAnalysisBtn');
+            const riskAnalysisOutput = document.getElementById('riskAnalysisOutput');
+            const calculateIncomeBtn = document.getElementById('calculateIncomeBtn');
+            const customerCountInput = document.getElementById('customerCountInput');
+            const incomeOutput = document.getElementById('incomeOutput');
+            const analyzeCompetitorBtn = document.getElementById('analyzeCompetitorBtn');
+            const competitorSelect = document.getElementById('competitorSelect');
+            const competitorOutput = document.getElementById('competitorOutput');
+            const generateSynergyBtn = document.getElementById('generateSynergyBtn');
+            const providerTypeSelect = document.getElementById('providerTypeSelect');
+            const synergyOutput = document.getElementById('synergyOutput');
+            const calculateEcosystemRevenueBtn = document.getElementById('calculateEcosystemRevenueBtn');
+            const avgSpendingInput = document.getElementById('avgSpendingInput');
+            const participationRateInput = document.getElementById('participationRateInput');
+            const ecosystemRevenueOutput = document.getElementById('ecosystemRevenueOutput');
+            const generateStudyPlanBtn = document.getElementById('generateStudyPlanBtn');
+            const studyTopicSelect = document.getElementById('studyTopicSelect');
+            const studyPlanOutput = document.getElementById('studyPlanOutput');
+            const generatePostBtn = document.getElementById('generatePostBtn');
+            const postThemeSelect = document.getElementById('postThemeSelect');
+            const postOutput = document.getElementById('postOutput');
+            const generateAnswerBtn = document.getElementById('generateAnswerBtn');
+            const questionSelect = document.getElementById('questionSelect');
+            const answerOutput = document.getElementById('answerOutput');
+            const generateCsrBtn = document.getElementById('generateCsrBtn');
+            const csrCountrySelect = document.getElementById('csrCountrySelect');
+            const csrOutput = document.getElementById('csrOutput');
+
+            async function callGemini(prompt, outputElement) {
+                outputElement.innerHTML = '<div class="loader"></div>';
+                
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{
+                        parts: [{ text: prompt }]
+                    }]
+                };
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API request failed with status ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        outputElement.textContent = text;
+                    } else {
+                        throw new Error('Invalid response structure from API.');
+                    }
+                } catch (error) {
+                    console.error('Error calling Gemini API:', error);
+                    outputElement.textContent = 'エラーが発生しました。しばらくしてから再度お試しください。';
+                }
+            }
+
+            if (generatePersonaBtn) {
+                generatePersonaBtn.addEventListener('click', () => {
+                    const country = countrySelect.options[countrySelect.selectedIndex].text;
+                    const prompt = `
+                        あなたは市場調査の専門家です。ウェルネスシステム「Resonance」を普及させるための「エリアマスター」のペルソナを作成してください。
+                        エリアマスターは、営業能力が不要な、地域の教育普及代理人です。
+
+                        製品情報:
+                        - Resonanceはサイマティクス科学に基づく周波数システム。
+                        - ターゲットは40代以上の女性で、氣功、瞑想、ヨガ、太極拳など心身のバランスを重視する層。
+                        - エリアマスターは、AI支援により営業活動は不要。成果報酬（税引き後利益の20%）とノルマ（月2回の勉強会、週1回のSNS発信）がある。
+
+                        ペルソナ作成の対象国: ${country}
+
+                        以下の項目を具体的に記述してください（日本語）。
+                        - **名前・年齢・職業:** (ヨガ講師、気功の先生、瞑想ガイド、地域の信頼厚い研究者など)
+                        - **背景とライフスタイル:**
+                        - **価値観とResonanceを広める動機:** (営業ではなく、教育や知識の共有への情熱を強調)
+                        - **コミュニティへの影響力とノルマ達成の戦略:** (AIツールをどう活用して教育活動を行うか)
+                    `;
+                    callGemini(prompt, personaOutput);
+                });
+            }
+
+            if (generateRiskAnalysisBtn) {
+                generateRiskAnalysisBtn.addEventListener('click', () => {
+                    const prompt = `
+                        あなたは経験豊富な経営コンサルタントです。以下の事業計画「プロジェクト・レゾナンス・ジャパン」について、一般的に懸念されがちなリスクを挙げ、それらが本計画においてなぜ問題とならないのかを説得力をもって説明してください。
+
+                        **事業概要:**
+                        - **製品:** 科学的根拠に基づく高価格帯のウェルネスシステム「Resonance」。
+                        - **市場:** 日本のニッチ市場（心身のバランスを重視する40代以上の女性）。
+                        - **戦略:**
+                            - **権威性:** 日本統合医療学会などとの連携で効果を担保。
+                            - **エリアマスター制度:** AI支援により営業能力不要。教育者が普及を担う。希望者は多く、質の維持と入れ替えは容易。
+                            - **価格戦略:** 高級ブランドと同様のポジショニング。
+                            - **展開:** パイロットマーケティングは不要。競合を避けるため即時展開が必須。
+                            - **法務:** 各国の法律は現地のサービスプロバイダが責任を持って対処。
+
+                        **説明の要件:**
+                        - 以下の3つの懸念事項を取り上げてください。
+                            1.  **市場リスク:** 「高価格帯であり、代替手段が多い市場で受け入れられるのか？」
+                            2.  **実行リスク:** 「エリアマスターの質をどう担保し、管理するのか？」
+                            3.  **展開リスク:** 「パイロットマーケティングなしでの即時展開は危険ではないか？」
+                        - それぞれの懸念に対し、上記の事業概要の強みを引用して「なぜそれが問題にならないか」を明確に論破してください。
+                        - 出力は日本語で、自信に満ちた断定的なトーンで記述してください。
+                    `;
+                    callGemini(prompt, riskAnalysisOutput);
+                });
+            }
+            
+            if (calculateIncomeBtn) {
+                 calculateIncomeBtn.addEventListener('click', () => {
+                    const customerCount = parseInt(customerCountInput.value, 10);
+                    if (isNaN(customerCount) || customerCount <= 0) {
+                        incomeOutput.textContent = '有効な顧客数を入力してください。';
+                        return;
+                    }
+                    
+                    const prompt = `
+                        あなたはファイナンシャルプランナーです。Resonanceの「エリアマスター」の年間期待収益を計算し、そのポテンシャルについて説明してください。
+
+                        **計算の前提条件:**
+                        - **年間獲得顧客数:** ${customerCount}人
+                        - **販売価格:** 330,000円 / ユニット
+                        - **ユニットあたりコスト:**
+                            - ハードウェア＋送料: 24,000円 (1ドル=150円換算)
+                            - 管理コスト（売上の3%）: 330,000円 * 0.03 = 9,900円
+                        - **ユニットあたり税引き後利益:**
+                            - 粗利益: 330,000 - 24,000 - 9,900 = 296,100円
+                            - 税金（法人税実効税率30%と仮定）: 296,100 * 0.3 = 88,830円
+                            - 税引き後利益: 296,100 - 88,830 = 207,270円
+                        - **エリアマスターの成果報酬:** 税引き後利益の20%
+
+                        **要件:**
+                        1.  ${customerCount}人の顧客を獲得した場合の、エリアマスターの**年間期待収益**を計算してください。
+                        2.  計算結果を明確に提示し、その収益がエリアマスターにとってどのような意味を持つか、モチベーションを高めるような解説を加えてください。
+                        3.  出力は日本語で、読みやすく、説得力のある構成にしてください。
+                    `;
+                    callGemini(prompt, incomeOutput);
+                });
+            }
+
+            if (analyzeCompetitorBtn) {
+                analyzeCompetitorBtn.addEventListener('click', () => {
+                    const competitor = competitorSelect.options[competitorSelect.selectedIndex].text;
+                    const prompt = `
+                        あなたは市場戦略アナリストです。ウェルネスシステム「Resonance」と、競合である「${competitor}」を比較分析してください。
+
+                        **Resonanceの概要:**
+                        - **製品:** 科学的根拠（サイマティクス）に基づく周波数と専用ハードウェア（Androidタブレット）を組み合わせた、完成形のプレミアムなシステム。
+                        - **ターゲット:** 40代以上の女性で、氣功、瞑想、ヨガなど心身のバランスを重視する、特定の価値観を持つニッチな層。
+                        - **戦略:** 万人向けではなく、高級ブランドのようなポジショニング。教育とコミュニティを通じて価値を伝える。
+
+                        **${competitor}の概要:**
+                        - ${competitor.includes('アプリ') || competitor.includes('Calm') || competitor.includes('Headspace') ? 
+                          "主にガイド付き瞑想や睡眠導入コンテンツを提供する、サブスクリプション型のモバイルアプリ。ストレスや不安を感じる、より広範なマス市場をターゲットとする。" :
+                          "特定の周波数や生体情報を扱う、高価格帯の物理的なヒーリングデバイス。主に専門家やセラピストが使用するプロ向けツールとしての側面が強い。"}
+
+                        **分析の要件:**
+                        - Resonanceが${competitor}とどのように異なるのか、以下の3つの観点から明確に説明してください。
+                            1.  **ターゲット層と利用シーンの違い:**
+                            2.  **提供価値とアプローチの違い:**
+                            3.  **ビジネスモデルとエコシステムの違い:**
+                        - なぜResonanceの戦略が、${competitor}とは異なる独自の市場で成功できるのか、結論を記述してください。
+                        - 出力は日本語で、専門的かつ説得力のあるトーンで記述してください。
+                    `;
+                    callGemini(prompt, competitorOutput);
+                });
+            }
+
+             if (calculateEcosystemRevenueBtn) {
+                calculateEcosystemRevenueBtn.addEventListener('click', () => {
+                    const avgSpending = parseInt(avgSpendingInput.value, 10);
+                    const participationRate = parseInt(participationRateInput.value, 10);
+
+                    if (isNaN(avgSpending) || avgSpending <= 0 || isNaN(participationRate) || participationRate <= 0 || participationRate > 100) {
+                        ecosystemRevenueOutput.textContent = '有効な数値を入力してください（参加率は1～100%）。';
+                        return;
+                    }
+
+                    const prompt = `
+                        あなたはビジネスアナリストです。Resonanceのエコシステムがもたらす追加収益の可能性を試算し、その戦略的重要性を説明してください。
+
+                        **計算の前提条件:**
+                        - **Y3時点での総顧客数:** 150,000人
+                        - **マーケット参加率:** ${participationRate}%
+                        - **参加顧客一人あたりの年間消費額:** ${avgSpending}円
+                        - **Resonanceの取引仲介手数料:** 10%
+
+                        **要件:**
+                        1.  上記の前提に基づき、Resonanceが得る**年間の追加収益**を計算してください。
+                        2.  計算結果を明確に提示してください。
+                        3.  この追加収益が、Resonanceの事業全体にとってどのような戦略的意味を持つのか（例：顧客ロイヤルティ向上、エリアマスターやサービスプロバイダへのインセンティブ強化など）を解説してください。
+                        4.  出力は日本語で、簡潔かつ説得力のある構成にしてください。
+                    `;
+                    callGemini(prompt, ecosystemRevenueOutput);
+                });
+            }
+        });
+
+    </script>
+</body>
+</html>
